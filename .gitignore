@@ -12,6 +12,6 @@
 hs_err_pid*
 
 # IDEA
-!lib/
+!/lib/
 .idea/
 *.iml
