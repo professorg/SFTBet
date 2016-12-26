@@ -1,0 +1,7 @@
+main: org.superfuntime.sftbet.SFTBet
+version: 1.0
+name: SFTBet
+
+commands:
+    pvp:
+        description: Commands related to PvP and betting
