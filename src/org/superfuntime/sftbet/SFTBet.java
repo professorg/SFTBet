@@ -9,8 +9,9 @@ import java.util.logging.Logger;
 
 public class SFTBet extends JavaPlugin {
 
-    Logger logger;
+    private Logger logger;
     // TODO: Vault integration
+    // TODO: Permissions
 
     @Override
     public void onEnable() {    // Load logger, config, initialize queue
@@ -34,6 +35,7 @@ public class SFTBet extends JavaPlugin {
             if (sender instanceof Player) {
 
                 Player player = (Player) sender;
+
                 // TODO: Teleport
                 // TODO: Load coords from config
                 // TODO: Matchmaking
