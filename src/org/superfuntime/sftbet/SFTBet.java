@@ -1,5 +1,6 @@
 package org.superfuntime.sftbet;
 
+import net.minecraft.util.org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -15,6 +16,9 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
 import java.util.logging.Logger;
 
 public class SFTBet extends JavaPlugin implements Listener {
@@ -24,8 +28,10 @@ public class SFTBet extends JavaPlugin implements Listener {
     private World world;
     private Location arena;
     private Location spectate;
+    private Queue<BetManager> queue;
     // TODO: Vault integration
     // TODO: Permissions
+    // TODO: Disable
 
     @Override
     public void onEnable() {    // Load logger, config, initialize queue
@@ -73,11 +79,17 @@ public class SFTBet extends JavaPlugin implements Listener {
             if (sender instanceof Player) {
 
                 Player player = (Player) sender;
-                if(args.length > 0) {
+                if (args.length > 0) {
 
-                    if (args[0].equalsIgnoreCase("queue")){
+                    if (args[0].equalsIgnoreCase("queue") || args[0].equalsIgnoreCase("list")) {
 
                         // TODO: Show match queue
+                        player.sendMessage(ChatColor.YELLOW + "Match Queue:");
+                        List<BetManager> matches = new ArrayList(queue);
+                        for (int i = 0; i < matches.size(); i++) {
+
+                            player.sendMessage(ChatColor.YELLOW + "" + i + ". " + StringUtils.join(matches.get(i).getFighters(), ", "));
+                        }
                     } else if (args[0].equalsIgnoreCase("spectate") || args[0].equalsIgnoreCase("watch")) {
 
                         player.teleport(spectate);
@@ -95,13 +107,22 @@ public class SFTBet extends JavaPlugin implements Listener {
                 return true;
             } else {
 
-                if (args.length > 0 && args[0].equalsIgnoreCase("queue")){
+                if (args.length > 0 && args[0].equalsIgnoreCase("queue")) {
 
                     // TODO: Show match queue
                 } else {
 
-                    sender.sendMessage(ChatColor.DARK_RED + "Non-player senders may only view queue.");
+                    sender.sendMessage(ChatColor.DARK_RED + "Non-player senders may only list matches.");
                 }
+            }
+        } else if (cmd.getName().equalsIgnoreCase("bet")) {
+
+            if (sender instanceof Player) {
+
+
+            } else {
+
+                sender.sendMessage(ChatColor.DARK_RED + "Non-player senders may not bet on matches.");
             }
         }
         return false;
@@ -117,5 +138,9 @@ public class SFTBet extends JavaPlugin implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
 
         // TODO: Check if in match & resume
+    }
+
+    public void addToQueue(String player) {
+
     }
 }
