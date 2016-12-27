@@ -21,6 +21,8 @@ public class BetManagerTest {
         bm.addBet("Bob", "p1", 56.10);
         bm.addBet("Gloopmaster", "Gloopmaster", 138.22);
 
+        System.out.println(bm);
+
         Map<String, Double> winnings = bm.calcWins("Jim");
         for(String w : winnings.keySet()){
             System.out.println(w + ": " + winnings.get(w));

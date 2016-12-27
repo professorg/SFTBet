@@ -1,9 +1,6 @@
 package org.superfuntime.sftbet;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * This class manages the bets and the people betting for the matches, also instantiable to put in a queue
@@ -39,6 +36,10 @@ public class BetManager {
         winnerPercent = perc;
     }
 
+    public static double getWinnerPercent(){ return winnerPercent; }
+
+    public Set<String> getFighters(){ return betInfo.keySet();}
+
     public Map<String, Double> calcWins(String winner){
         // first part gathers all the money from the losers
         double loseAmount = 0.0;
@@ -61,6 +62,7 @@ public class BetManager {
 
         Map<String, Double> gains = new HashMap();
 
+        // calculates the percent of pot that goes to each bet winner
         if(winBet != 0) {
             for (String wnr : betInfo.get(winner).keySet()) {
                 int mg = ((int) (100 * (loseAmount * (betInfo.get(winner).get(wnr) / winBet))));
@@ -70,6 +72,7 @@ public class BetManager {
             }
         }
 
+        // checks to see whether all the money should go to fighter due to lack of bet winners (other than fighter)
         if(gains.isEmpty()){
             gains.put(winner, loseAmount);
         }
@@ -81,5 +84,19 @@ public class BetManager {
         }
 
         return gains;
+    }
+
+    @Override
+    public String toString(){
+        String s = "";
+        for(String fitr : betInfo.keySet()){
+            String fn = (fitr + " |------------------------------").substring(0, 32); // right padding for 32 chars
+            s += fn + "\n";
+            for(String btr : betInfo.get(fitr).keySet()){
+                String pn = (btr + "                ").substring(0, 16); // right padding for 16 chars
+                s += "    " + pn + " " + betInfo.get(fitr).get(btr) + "\n";
+            }
+        }
+        return s;
     }
 }
