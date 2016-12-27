@@ -15,7 +15,7 @@ public class BetManager {
 
     private Map<String, Map<String, Double>> betInfo; // all the other people
 
-    public BetManager(List<String> fighters){
+    public BetManager(Collection<String> fighters){
         betInfo = new HashMap();
         for(String ftr : fighters){
             betInfo.put(ftr, new HashMap()); // init people to bet for
@@ -51,7 +51,7 @@ public class BetManager {
         }
 
         // second part distributes money based on bet amount (plus default fighter win amount)
-        double wins = loseAmount * winnerPercent;
+        double wins = loseAmount * winnerPercent; // money that fighter takes
         loseAmount -= wins;
 
         double winBet = 0.0;
@@ -63,8 +63,21 @@ public class BetManager {
 
         if(winBet != 0) {
             for (String wnr : betInfo.get(winner).keySet()) {
-                gains.put(wnr, Math.floor(100 * (loseAmount * (betInfo.get(winner).get(wnr) / winBet))) * 0.01);
+                int mg = ((int) (100 * (loseAmount * (betInfo.get(winner).get(wnr) / winBet))));
+                if(mg != 0) {
+                    gains.put(wnr, mg * 0.01);
+                }
             }
+        }
+
+        if(gains.isEmpty()){
+            gains.put(winner, loseAmount);
+        }
+
+        if(gains.containsKey(winner)){ // makes sure to add fighter's winnings to total
+            gains.replace(winner, ((int) (100 * (gains.get(winner) + wins))) * 0.01);
+        }else{
+            gains.put(winner, ((int) (100 * wins)) * 0.01);
         }
 
         return gains;
