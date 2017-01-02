@@ -4,4 +4,6 @@ name: SFTBet
 
 commands:
     pvp:
-        description: Commands related to PvP and betting
+        description: Initiate matchmaking in the PvP arena
+    bet:
+        description: Bet on participating players
