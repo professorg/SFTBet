@@ -246,8 +246,8 @@ public class SFTBet extends JavaPlugin implements Listener {
                     if (args.length >= 3) {
                         int matchid = Integer.parseInt(args[0]);
                         first = false;
-                        if (queue.size() > matchid && matchid >= 0) {
-                            BetManager match = queue.get(matchid);
+                        if (queue.length > matchid && matchid >= 0) {
+                            BetManager match = queue[matchid];
                             boolean worked = false;
                             if (match != null) {
                                 worked = match.addBet(args[1], player.getName(), Integer.parseInt(args[2]));
