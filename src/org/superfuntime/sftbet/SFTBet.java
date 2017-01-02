@@ -49,12 +49,13 @@ public class SFTBet extends JavaPlugin implements Listener {
 
             if (waiting.size() > 1) {
 
-                queue[currentId++] = new BetManager(waiting);
-                currentId %= 64;
+                queue[currentId] = new BetManager(waiting);
                 for (String s : waiting) {
 
-                    getServer().getPlayer(s).sendMessage(ChatColor.YELLOW + "Found match with " + waiting.size() + " players. Match is number " + queue.length + " in match queue");
+                    getServer().getPlayer(s).sendMessage(ChatColor.YELLOW + "Found match with " + waiting.size() + " players. Match is number " + currentId + " in match queue");
                 }
+                currentId++;
+                currentId %= 64;
                 waiting.clear();
             }
         }, 0L, 600L);   // 20 ticks/second * 30 seconds
