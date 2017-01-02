@@ -240,16 +240,45 @@ public class SFTBet extends JavaPlugin implements Listener {
         } else if (cmd.getName().equalsIgnoreCase("bet") && !betDisabled) {
 
             if (sender instanceof Player) {
+                Player player = (Player) sender;
+                boolean first = true;
+                try {
+                    if (args.length >= 3) {
+                        int matchid = Integer.parseInt(args[0]);
+                        first = false;
+                        if (queue.length > matchid && matchid >= 0) {
+                            BetManager match = queue[matchid];
+                            boolean worked = false;
+                            if (match != null) {
+                                worked = match.addBet(args[1], player.getName(), Integer.parseInt(args[2]));
+                                if (!worked) {
+                                    if (match.getState() == 1) {
+                                        sender.sendMessage(ChatColor.YELLOW + "Betting for match " + matchid + " has ended already.");
+                                    }else if(match.getState() >= 2){
+                                        sender.sendMessage(ChatColor.DARK_RED + "" + matchid + " is not an ongoing match.");
+                                    } else {
+                                        sender.sendMessage(ChatColor.DARK_RED + "There is no fighter " + args[1] + " in match " + matchid);
+                                    }
+                                }
+                            }else{
+                                sender.sendMessage(ChatColor.DARK_RED + "" + matchid + " is not an ongoing match.");
+                            }
+                        } else {
 
-                if (args.length > 0) {
+                            sender.sendMessage(ChatColor.YELLOW + "Use '/bet help' to show usages.");
+                        }
 
-                } else {
+                    } else {
 
-                    sender.sendMessage(ChatColor.YELLOW + "Use '/bet help' to show usages.");
+                        sender.sendMessage(ChatColor.DARK_RED + "Non-player senders may not bet on matches.");
+                    }
+                } catch (Exception e) {
+                    if (first) {
+                        sender.sendMessage(ChatColor.DARK_RED + args[0] + " must be an valid match number.");
+                    } else {
+                        sender.sendMessage(ChatColor.DARK_RED + args[2] + " must be an valid amount of money.");
+                    }
                 }
-            } else {
-
-                sender.sendMessage(ChatColor.DARK_RED + "Non-player senders may not bet on matches.");
             }
         } else if (cmd.getName().equalsIgnoreCase("disable")) {
 
