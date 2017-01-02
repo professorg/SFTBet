@@ -164,6 +164,12 @@ public class SFTBet extends JavaPlugin implements Listener {
 
                                 sender.sendMessage(ChatColor.DARK_RED + "Match not found.");
                             }
+                        } else if (player.hasPermission("sftbet.help") && args[0].equalsIgnoreCase("help")) {
+
+                            showPvpHelp(player);
+                        } else {
+
+                            sender.sendMessage(ChatColor.DARK_RED + "Invalid usage. Use '/pvp help' to show usages.");
                         }
                     } else {
 
@@ -174,41 +180,49 @@ public class SFTBet extends JavaPlugin implements Listener {
                     // TODO: Permissions
                 } else {
 
-                    if (args.length > 0 && sender.hasPermission("sftbet.queue") && args[0].equalsIgnoreCase("queue")) {
+                    if (args.length > 0) {
+                        if (sender.hasPermission("sftbet.queue") && args[0].equalsIgnoreCase("queue")) {
 
-                        // Show match queue
-                        sender.sendMessage(ChatColor.YELLOW + "Match Queue:");
-                        List<BetManager> matches = new ArrayList(queue);
-                        for (int i = 0; i < matches.size(); i++) {
+                            // Show match queue
+                            sender.sendMessage(ChatColor.YELLOW + "Match Queue:");
+                            List<BetManager> matches = new ArrayList(queue);
+                            for (int i = 0; i < matches.size(); i++) {
 
-                            sender.sendMessage(ChatColor.YELLOW + "" + i + ". " + StringUtils.join(matches.get(i).getFighters(), ", "));
-                        }
-                    } else if (sender.hasPermission("sftbet.disable") && args[0].equalsIgnoreCase("disable")) {
+                                sender.sendMessage(ChatColor.YELLOW + "" + i + ". " + StringUtils.join(matches.get(i).getFighters(), ", "));
+                            }
+                        } else if (sender.hasPermission("sftbet.disable") && args[0].equalsIgnoreCase("disable")) {
 
-                        pvpDisabled = true;
-                    } else if (sender.hasPermission("sftbet.info") && args[0].equalsIgnoreCase("info") && args.length >= 2) {
+                            pvpDisabled = true;
+                        } else if (sender.hasPermission("sftbet.info") && args[0].equalsIgnoreCase("info") && args.length >= 2) {
 
-                        int n;
-                        try {
+                            int n;
+                            try {
 
-                            n = Integer.parseInt(args[1]);
-                            if (queue.size() > n) {
+                                n = Integer.parseInt(args[1]);
+                                if (queue.size() > n) {
 
-                                sender.sendMessage(ChatColor.YELLOW + "Match " + args[1] + ":");
-                                for (String s : queue.get(n).toString().split("\n")) {
-                                    sender.sendMessage(ChatColor.YELLOW + s);
+                                    sender.sendMessage(ChatColor.YELLOW + "Match " + args[1] + ":");
+                                    for (String s : queue.get(n).toString().split("\n")) {
+                                        sender.sendMessage(ChatColor.YELLOW + s);
+                                    }
+                                } else {
+
+                                    sender.sendMessage(ChatColor.DARK_RED + "Match not found.");
                                 }
-                            } else {
+                            } catch (Exception e) {
 
                                 sender.sendMessage(ChatColor.DARK_RED + "Match not found.");
                             }
-                        } catch (Exception e) {
+                        } else if (sender.hasPermission("sftbet.help") && args[0].equalsIgnoreCase("help")) {
 
-                            sender.sendMessage(ChatColor.DARK_RED + "Match not found.");
+                            showPvpHelp(sender);
+                        } else {
+
+                            sender.sendMessage(ChatColor.DARK_RED + "Non-player senders may not execute this command.");
                         }
                     } else {
 
-                        sender.sendMessage(ChatColor.DARK_RED + "Non-player senders may not execute this command.");
+                        showPvpHelp(sender);
                     }
                 }
             } else if (sender.hasPermission("sftbet.enable") && args[0].equalsIgnoreCase("enable")) {
@@ -246,6 +260,20 @@ public class SFTBet extends JavaPlugin implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
 
         // TODO: Check if in match & resume
+    }
+
+    private void showPvpHelp(CommandSender sender) {
+
+        sender.sendMessage(ChatColor.YELLOW + "/pvp help: Shows this message");
+        sender.sendMessage(ChatColor.YELLOW + "/pvp queue: Shows match queue");
+        sender.sendMessage(ChatColor.YELLOW + "/pvp list: Alias for queue");
+        sender.sendMessage(ChatColor.YELLOW + "/pvp spectate: Watch matches from spectator arena");
+        sender.sendMessage(ChatColor.YELLOW + "/pvp watch: Alias for spectate");
+        sender.sendMessage(ChatColor.YELLOW + "/pvp join: Joins matchmaking waiting list");
+        sender.sendMessage(ChatColor.YELLOW + "/pvp start: Alias for join");
+        sender.sendMessage(ChatColor.YELLOW + "/pvp info: Show info for match");
+        sender.sendMessage(ChatColor.YELLOW + "    Usage: /pvp info <match number>");
+        sender.sendMessage(ChatColor.YELLOW + "/pvp disable: Disables all pvp commands");
     }
 
 }
