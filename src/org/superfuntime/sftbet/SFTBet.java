@@ -1,5 +1,7 @@
 package org.superfuntime.sftbet;
 
+import net.milkbowl.vault.chat.Chat;
+import net.milkbowl.vault.economy.Economy;
 import net.minecraft.util.org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -12,13 +14,16 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 public class SFTBet extends JavaPlugin implements Listener {
@@ -31,37 +36,31 @@ public class SFTBet extends JavaPlugin implements Listener {
     private Location spectate;
     private BetManager[] queue;
     private List<String> waiting;
+    private BetManager activeMatch;
+    private List<String> activePlayers;
+    private int activeMatchId;
     private boolean pvpDisabled;
     private boolean betDisabled;
     private int currentId;
-    // TODO: Vault integration
-    // TODO: Permissions
-    // TODO: Disable
+    // TODO: GUI
+
+    private Economy economy;
 
     @Override
     public void onEnable() {    // Load logger, config, initialize queue
 
         queue = new BetManager[32];
         waiting = new ArrayList<String>();
+        activePlayers = new ArrayList<String>();
         currentId = 0;
-        scheduler = getServer().getScheduler();
-        scheduler.scheduleSyncRepeatingTask(this, () -> {   // Add waiting players to matches every 30 seconds
-
-            if (waiting.size() > 1) {
-
-                queue[currentId] = new BetManager(waiting);
-                for (String s : waiting) {
-
-                    getServer().getPlayer(s).sendMessage(ChatColor.YELLOW + "Found match with " + waiting.size() + " players. Match is number " + currentId + " in match queue");
-                }
-                currentId++;
-                currentId %= 64;
-                waiting.clear();
-            }
-        }, 0L, 600L);   // 20 ticks/second * 30 seconds
+        activeMatchId = -1;
+        activeMatch = null;
         logger = getLogger();   // Logger
         logger.info("Loading SFTBet...");
         logger.info("Reading config");
+        if (setupEconomy()) {
+            logger.info("Found economy: " + economy.getName());
+        }
         try {
 
             config = getConfig();   // Get config
@@ -91,6 +90,47 @@ public class SFTBet extends JavaPlugin implements Listener {
             this.setEnabled(false);
             return;
         }
+        getServer().getPluginManager().registerEvents(this, this);
+        scheduler = getServer().getScheduler();
+        scheduler.scheduleSyncRepeatingTask(this, () -> {   // Add waiting players to matches every 30 seconds
+
+            if (waiting.size() > 1) {
+
+                BetManager match = new BetManager(waiting);
+                queue[currentId] = match;
+                for (String s : waiting) {
+
+                    getServer().getPlayer(s).sendMessage(ChatColor.YELLOW + "Found match with " + waiting.size() + " players. Match is number " + currentId + " in match queue");
+                }
+                waiting.clear();
+                if (activeMatch == null) {
+
+                    int n = currentId;
+                    scheduler.scheduleSyncDelayedTask(this, () -> {
+
+                        match.setState(1);
+                        activeMatch = match;
+                        activeMatchId = n;
+                        activePlayers = new ArrayList<String>(match.getFighters());
+                        for (String s : match.getFighters()) {
+
+                            getServer().getPlayer(s).teleport(arena);
+                        }
+                        Map<String, Map<String, Double>> betInfo = match.getBetInfo();
+                        betInfo.forEach((k, v) -> {
+                            v.forEach((k1, v1) -> {
+
+                                getServer().getPlayer(k1).sendMessage(ChatColor.YELLOW + "Betting has ended for match " + activeMatchId);
+                                economy.withdrawPlayer(getServer().getPlayer(k1), v1);
+                            });
+                        });
+                    }, 600L);   // 30 seconds to bet
+                }
+                currentId++;
+                currentId %= 32;
+            }
+        }, 0L, 600L);   // 20 ticks/second * 30 seconds
+
         pvpDisabled = false;
         betDisabled = false;
     }
@@ -98,7 +138,15 @@ public class SFTBet extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
 
-        // TODO: Return active bets
+        if (activeMatch != null && activeMatch.getState() < 2) {
+
+            Map<String, Map<String, Double>> betInfo = activeMatch.getBetInfo();
+            betInfo.forEach((k, v) -> {
+                v.forEach((k1, v1) -> {
+                    economy.depositPlayer(getServer().getPlayer(k1), v1);
+                });
+            });
+        }
     }
 
     @Override
@@ -116,14 +164,35 @@ public class SFTBet extends JavaPlugin implements Listener {
                         if (player.hasPermission("sftbet.queue") && (args[0].equalsIgnoreCase("queue") || args[0].equalsIgnoreCase("list"))) {
 
                             // Show match queue
-                            player.sendMessage(ChatColor.YELLOW + "Match Queue:");
-                            for (int i = 0; i < 32; i++) {
+                            sender.sendMessage(ChatColor.YELLOW + "Match Queue:");
+                            boolean found = false;
+                            for (int i = currentId; i < 32; i++) {
 
                                 if (queue[i] != null) {
 
-                                    player.sendMessage(ChatColor.YELLOW + "" + i + ": " + StringUtils.join(queue[i].getFighters(), ", "));
+                                    ChatColor color;
+                                    if (queue[i].getState() == 0) color = ChatColor.GREEN;
+                                    else if (queue[i].getState() == 1) color = ChatColor.BLUE;
+                                    else if (queue[i].getState() == 2) color = ChatColor.RED;
+                                    else color = ChatColor.BLACK;
+                                    player.sendMessage(color + "  " + i + ": " + StringUtils.join(queue[i].getFighters(), ", "));
+                                    found = true;
                                 }
                             }
+                            for (int i = 0; i < currentId; i++) {
+
+                                if (queue[i] != null) {
+
+                                    ChatColor color;
+                                    if (queue[i].getState() == 0) color = ChatColor.GREEN;
+                                    else if (queue[i].getState() == 1) color = ChatColor.BLUE;
+                                    else if (queue[i].getState() == 2) color = ChatColor.RED;
+                                    else color = ChatColor.BLACK;
+                                    player.sendMessage(color + "  " + i + ": " + StringUtils.join(queue[i].getFighters(), ", "));
+                                    found = true;
+                                }
+                            }
+                            if (!found) sender.sendMessage(ChatColor.GRAY + "  None");
                         } else if (player.hasPermission("sftbet.spectate") && (args[0].equalsIgnoreCase("spectate") || args[0].equalsIgnoreCase("watch"))) {
 
                             player.teleport(spectate);
@@ -182,8 +251,6 @@ public class SFTBet extends JavaPlugin implements Listener {
                         if (player.hasPermission("sftbet.spectate")) player.teleport(spectate);
                         player.sendMessage(ChatColor.YELLOW + "Use '/pvp help' to show usages.");
                     }
-                    // TODO: Matchmaking ( ͡° ͜ʖ ͡°)
-                    // TODO: Permissions
                 } else {
 
                     if (args.length > 0) {
@@ -191,13 +258,34 @@ public class SFTBet extends JavaPlugin implements Listener {
 
                             // Show match queue
                             sender.sendMessage(ChatColor.YELLOW + "Match Queue:");
-                            for (int i = 0; i < 32; i++) {
+                            boolean found = false;
+                            for (int i = currentId; i < 32; i++) {
 
                                 if (queue[i] != null) {
 
-                                    sender.sendMessage(ChatColor.YELLOW + "" + i + ": " + StringUtils.join(queue[i].getFighters(), ", "));
+                                    ChatColor color;
+                                    if (queue[i].getState() == 0) color = ChatColor.GREEN;
+                                    else if (queue[i].getState() == 1) color = ChatColor.BLUE;
+                                    else if (queue[i].getState() == 2) color = ChatColor.RED;
+                                    else color = ChatColor.BLACK;
+                                    sender.sendMessage(color + "  " + i + ": " + StringUtils.join(queue[i].getFighters(), ", "));
+                                    found = true;
                                 }
                             }
+                            for (int i = 0; i < currentId; i++) {
+
+                                if (queue[i] != null) {
+
+                                    ChatColor color;
+                                    if (queue[i].getState() == 0) color = ChatColor.GREEN;
+                                    else if (queue[i].getState() == 1) color = ChatColor.BLUE;
+                                    else if (queue[i].getState() == 2) color = ChatColor.RED;
+                                    else color = ChatColor.BLACK;
+                                    sender.sendMessage(color + "  " + i + ": " + StringUtils.join(queue[i].getFighters(), ", "));
+                                    found = true;
+                                }
+                            }
+                            if (!found) sender.sendMessage(ChatColor.GRAY + "  None");
                         } else if (sender.hasPermission("sftbet.disable") && args[0].equalsIgnoreCase("disable")) {
 
                             pvpDisabled = true;
@@ -255,13 +343,15 @@ public class SFTBet extends JavaPlugin implements Listener {
                                 if (!worked) {
                                     if (match.getState() == 1) {
                                         sender.sendMessage(ChatColor.YELLOW + "Betting for match " + matchid + " has ended already.");
-                                    }else if(match.getState() >= 2){
+                                    } else if (match.getState() >= 2) {
                                         sender.sendMessage(ChatColor.DARK_RED + "" + matchid + " is not an ongoing match.");
                                     } else {
                                         sender.sendMessage(ChatColor.DARK_RED + "There is no fighter " + args[1] + " in match " + matchid);
                                     }
+                                } else {
+                                    sender.sendMessage(ChatColor.YELLOW + "Bet " + args[2] + economy.currencyNamePlural() + " on " + args[1]);
                                 }
-                            }else{
+                            } else {
                                 sender.sendMessage(ChatColor.DARK_RED + "" + matchid + " is not an ongoing match.");
                             }
                         } else {
@@ -271,7 +361,7 @@ public class SFTBet extends JavaPlugin implements Listener {
 
                     } else {
 
-                        sender.sendMessage(ChatColor.DARK_RED + "Non-player senders may not bet on matches.");
+                        showBetHelp(sender);
                     }
                 } catch (Exception e) {
                     if (first) {
@@ -280,9 +370,13 @@ public class SFTBet extends JavaPlugin implements Listener {
                         sender.sendMessage(ChatColor.DARK_RED + args[2] + " must be an valid amount of money.");
                     }
                 }
+            } else {
+
+                sender.sendMessage(ChatColor.DARK_RED + "Non-player senders may not bet on matches.");
             }
         } else if (cmd.getName().equalsIgnoreCase("disable")) {
 
+            betDisabled = true;
         }
         return false;
     }
@@ -299,6 +393,66 @@ public class SFTBet extends JavaPlugin implements Listener {
         // TODO: Check if in match & resume
     }
 
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent event) {
+
+        if (activeMatch == null) return;
+        boolean inMatch = false;
+        for (String s : activePlayers) {
+
+            if (s.equalsIgnoreCase(event.getEntity().getName())) {
+
+                activePlayers.remove(s);
+                inMatch = true;
+                break;
+            }
+        }
+        if (!inMatch) return;
+        if (activePlayers.size() == 1) {
+
+            activeMatch.setState(2);
+            Map<String, Double> winnings = activeMatch.calcWins(activePlayers.get(0));
+            winnings.forEach((k, v) -> {
+
+                getServer().getPlayer(k).sendMessage(ChatColor.GREEN + "You won " + v + economy.currencyNamePlural() + " on match " + activeMatchId);
+                economy.depositPlayer(getServer().getPlayer(k), v);
+            });
+
+            getServer().getPlayer(activePlayers.get(0)).teleport(spectate);
+
+            activeMatch = null;
+            queue[activeMatchId] = null;
+            activeMatchId = -1;
+            activePlayers.clear();
+            for (int i = 0; i < 32; i++) {
+
+                BetManager match = queue[i];
+                if (match != null) {
+
+                    int n = currentId;
+
+                    scheduler.scheduleSyncDelayedTask(this, () -> {
+
+                        match.setState(1);
+                        activeMatch = match;
+                        activeMatchId = n;
+                        activePlayers = new ArrayList<String>(match.getFighters());
+                        for (String s : match.getFighters()) {
+
+                            getServer().getPlayer(s).teleport(arena);
+                        }
+                        Map<String, Map<String, Double>> betInfo = match.getBetInfo();
+                        betInfo.forEach((k, v) -> {
+                            v.forEach((k1, v1) -> {
+                                economy.withdrawPlayer(getServer().getPlayer(k1), v1);
+                            });
+                        });
+                    }, 600L);   // 30 seconds to bet
+                }
+            }
+        }
+    }
+
     private void showPvpHelp(CommandSender sender) {
 
         sender.sendMessage(ChatColor.YELLOW + "/pvp help: Shows this message");
@@ -311,6 +465,20 @@ public class SFTBet extends JavaPlugin implements Listener {
         sender.sendMessage(ChatColor.YELLOW + "/pvp info: Show info for match");
         sender.sendMessage(ChatColor.YELLOW + "    Usage: /pvp info <match number>");
         sender.sendMessage(ChatColor.YELLOW + "/pvp disable: Disables all pvp commands");
+    }
+
+    private void showBetHelp(CommandSender sender) {
+
+        sender.sendMessage(ChatColor.YELLOW + "Usage: /bet <match id> <player> <amount>");
+    }
+
+    private boolean setupEconomy() {
+        RegisteredServiceProvider<Economy> economyProvider = getServer().getServicesManager().getRegistration(net.milkbowl.vault.economy.Economy.class);
+        if (economyProvider != null) {
+            economy = economyProvider.getProvider();
+            return true;
+        }
+        return false;
     }
 
 }
