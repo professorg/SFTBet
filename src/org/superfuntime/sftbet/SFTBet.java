@@ -29,10 +29,11 @@ public class SFTBet extends JavaPlugin implements Listener {
     private World world;
     private Location arena;
     private Location spectate;
-    private List<BetManager> queue;
+    private BetManager[] queue;
     private List<String> waiting;
     private boolean pvpDisabled;
     private boolean betDisabled;
+    private int currentId;
     // TODO: Vault integration
     // TODO: Permissions
     // TODO: Disable
@@ -40,17 +41,19 @@ public class SFTBet extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {    // Load logger, config, initialize queue
 
-        queue = new ArrayList<BetManager>();
+        queue = new BetManager[32];
         waiting = new ArrayList<String>();
+        currentId = 0;
         scheduler = getServer().getScheduler();
         scheduler.scheduleSyncRepeatingTask(this, () -> {   // Add waiting players to matches every 30 seconds
 
             if (waiting.size() > 1) {
 
-                queue.add(new BetManager(waiting));
+                queue[currentId++] = new BetManager(waiting);
+                currentId %= 64;
                 for (String s : waiting) {
 
-                    getServer().getPlayer(s).sendMessage(ChatColor.YELLOW + "Found match with " + waiting.size() + " players. Match is number " + queue.size() + " in match queue");
+                    getServer().getPlayer(s).sendMessage(ChatColor.YELLOW + "Found match with " + waiting.size() + " players. Match is number " + queue.length + " in match queue");
                 }
                 waiting.clear();
             }
@@ -113,10 +116,12 @@ public class SFTBet extends JavaPlugin implements Listener {
 
                             // Show match queue
                             player.sendMessage(ChatColor.YELLOW + "Match Queue:");
-                            List<BetManager> matches = new ArrayList(queue);
-                            for (int i = 0; i < matches.size(); i++) {
+                            for (int i = 0; i < 32; i++) {
 
-                                player.sendMessage(ChatColor.YELLOW + "" + i + ". " + StringUtils.join(matches.get(i).getFighters(), ", "));
+                                if (queue[i] != null) {
+
+                                    player.sendMessage(ChatColor.YELLOW + "" + i + ": " + StringUtils.join(queue[i].getFighters(), ", "));
+                                }
                             }
                         } else if (player.hasPermission("sftbet.spectate") && (args[0].equalsIgnoreCase("spectate") || args[0].equalsIgnoreCase("watch"))) {
 
@@ -150,10 +155,10 @@ public class SFTBet extends JavaPlugin implements Listener {
                             try {
 
                                 n = Integer.parseInt(args[1]);
-                                if (queue.size() > n) {
+                                if (queue[n] != null) {
 
                                     sender.sendMessage(ChatColor.YELLOW + "Match " + args[1] + ":");
-                                    for (String s : queue.get(n).toString().split("\n")) {
+                                    for (String s : queue[n].toString().split("\n")) {
                                         sender.sendMessage(ChatColor.YELLOW + s);
                                     }
                                 } else {
@@ -185,10 +190,12 @@ public class SFTBet extends JavaPlugin implements Listener {
 
                             // Show match queue
                             sender.sendMessage(ChatColor.YELLOW + "Match Queue:");
-                            List<BetManager> matches = new ArrayList(queue);
-                            for (int i = 0; i < matches.size(); i++) {
+                            for (int i = 0; i < 32; i++) {
 
-                                sender.sendMessage(ChatColor.YELLOW + "" + i + ". " + StringUtils.join(matches.get(i).getFighters(), ", "));
+                                if (queue[i] != null) {
+
+                                    sender.sendMessage(ChatColor.YELLOW + "" + i + ": " + StringUtils.join(queue[i].getFighters(), ", "));
+                                }
                             }
                         } else if (sender.hasPermission("sftbet.disable") && args[0].equalsIgnoreCase("disable")) {
 
@@ -199,10 +206,10 @@ public class SFTBet extends JavaPlugin implements Listener {
                             try {
 
                                 n = Integer.parseInt(args[1]);
-                                if (queue.size() > n) {
+                                if (queue[n] != null) {
 
                                     sender.sendMessage(ChatColor.YELLOW + "Match " + args[1] + ":");
-                                    for (String s : queue.get(n).toString().split("\n")) {
+                                    for (String s : queue[n].toString().split("\n")) {
                                         sender.sendMessage(ChatColor.YELLOW + s);
                                     }
                                 } else {
