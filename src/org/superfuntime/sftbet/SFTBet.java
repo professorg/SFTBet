@@ -251,13 +251,17 @@ public class SFTBet extends JavaPlugin implements Listener {
                             boolean worked = false;
                             if (match != null) {
                                 worked = match.addBet(args[1], player.getName(), Integer.parseInt(args[2]));
-                            }
-                            if(!worked){
-                                if(match.getState() != 0){
-                                    sender.sendMessage(ChatColor.YELLOW + "Betting for match " + matchid + " has ended already.");
-                                }else{
-                                    sender.sendMessage(ChatColor.YELLOW + "There is no fighter " + args[1] + " in match " + matchid);
+                                if (!worked) {
+                                    if (match.getState() == 1) {
+                                        sender.sendMessage(ChatColor.YELLOW + "Betting for match " + matchid + " has ended already.");
+                                    }else if(match.getState() >= 2){
+                                        sender.sendMessage(ChatColor.DARK_RED + "" + matchid + " is not an ongoing match.");
+                                    } else {
+                                        sender.sendMessage(ChatColor.DARK_RED + "There is no fighter " + args[1] + " in match " + matchid);
+                                    }
                                 }
+                            }else{
+                                sender.sendMessage(ChatColor.DARK_RED + "" + matchid + " is not an ongoing match.");
                             }
                         } else {
 
@@ -270,9 +274,9 @@ public class SFTBet extends JavaPlugin implements Listener {
                     }
                 } catch (Exception e) {
                     if (first) {
-                        sender.sendMessage(ChatColor.RED + args[0] + " must be an valid match number.");
+                        sender.sendMessage(ChatColor.DARK_RED + args[0] + " must be an valid match number.");
                     } else {
-                        sender.sendMessage(ChatColor.RED + args[2] + " must be an valid amount of money.");
+                        sender.sendMessage(ChatColor.DARK_RED + args[2] + " must be an valid amount of money.");
                     }
                 }
             }
